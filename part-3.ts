@@ -1,7 +1,7 @@
 // Part 3: Adding human-in-the-loop confirmations to a tool
 "use strict";
 import Arcade from "@arcadeai/arcadejs";
-import { getTools } from "./common/config";
+import { getTools } from "./common/tools";
 import { Agent, run, type AgentInputItem, user, assistant } from "@openai/agents";
 import chalk from "chalk";
 import { confirm } from "./common/utils";

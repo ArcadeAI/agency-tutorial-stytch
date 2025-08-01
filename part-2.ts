@@ -1,7 +1,7 @@
 // Part 2: Adding tools to the chatbot
 "use strict";
 import Arcade from "@arcadeai/arcadejs";
-import { getTools } from "./common/config";
+import { getTools } from "./common/tools";
 import { Agent, run, type AgentInputItem, user, assistant } from "@openai/agents";
 import chalk from "chalk";
 import ora from "ora";
@@ -21,7 +21,13 @@ const arcade = new Arcade({
 const userId = "mateo@arcade.dev";
 
 spinner.start();
-const tools = await getTools({ arcade, toolkits: ["Gmail"], userId: userId });
+//const tools = await getTools({ arcade, toolkits: ["Gmail"], userId: userId });
+const tools = await getTools({
+    arcade,
+    tools: ["Slack.SendDmToUser", "Slack.ListUsers", "Slack.GetUsersInfo", "Slack.SendMessageToChannel"],
+    userId: userId,
+    enforceApproval: true,
+});
 spinner.succeed(`${tools.length} tools loaded`);
 
 const chatbot = new Agent({

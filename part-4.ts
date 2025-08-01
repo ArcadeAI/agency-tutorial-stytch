@@ -1,7 +1,7 @@
 import Arcade from "@arcadeai/arcadejs";
 import { Agent, run, type AgentInputItem, user, assistant, handoff } from "@openai/agents";
 import { RECOMMENDED_PROMPT_PREFIX } from '@openai/agents-core/extensions';
-import { getTools } from "./common/config";
+import { getTools } from "./common/tools";
 import { confirm } from "./common/utils";
 import chalk from "chalk";
 import ora from "ora";
@@ -123,7 +123,6 @@ async function main() {
                     state.reject(interruption);
                 }
             }
-            rl.pause();
             stream = await run(triageAgent, state, { stream: true, maxTurns: 10 });
             stream
                 .toTextStream({ compatibleWithNodeStreams: true })

@@ -38,6 +38,10 @@ async function main() {
         stream
             .toTextStream({ compatibleWithNodeStreams: true })
             .pipe(process.stdout);
+            await stream.completed;
+        stream
+            .toTextStream({ compatibleWithNodeStreams: true })
+            .pipe(process.stdout);
         await stream.completed;
 
         if (stream.finalOutput) {
