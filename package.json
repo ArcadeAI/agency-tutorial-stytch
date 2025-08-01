@@ -1,0 +1,17 @@
+{
+  "name": "agency-tutorial-stytch",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@arcadeai/arcadejs": "^1.9.0",
+    "@openai/agents": "^0.0.14",
+    "ora": "^8.2.0"
+  }
+}
