@@ -72,7 +72,6 @@ export async function POST(req: NextRequest) {
             input = messages;
         }
         try {
-            console.log("input", input);
 
             const result = await runner.run(agent, input);
 

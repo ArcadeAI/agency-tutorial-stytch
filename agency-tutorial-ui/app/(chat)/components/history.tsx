@@ -1,13 +1,12 @@
 import type { AgentInputItem } from '@openai/agents';
 import { TextMessage } from './messages/text-message';
-import {
-  FunctionCallMessage,
-  ProcessedFunctionCallItem,
-} from './messages/function-call';
 import { useMemo } from 'react';
+import { FunctionSquare, Clock, CheckCircle } from 'lucide-react';
+import clsx from 'clsx';
 
 export type HistoryProps = {
   history: AgentInputItem[];
+  onEventClick?: (eventId: string) => void;
 };
 
 export type ProcessedMessageItem = {
@@ -15,6 +14,14 @@ export type ProcessedMessageItem = {
   role: 'user' | 'assistant';
   content: string;
   id: string;
+};
+
+export type ProcessedFunctionCallItem = {
+  type: 'function_call';
+  name: string;
+  id: string;
+  callId: string;
+  status: 'completed' | 'in_progress';
 };
 
 type ProcessedItem = ProcessedMessageItem | ProcessedFunctionCallItem;
@@ -27,7 +34,6 @@ function processItems(items: AgentInputItem[]): ProcessedItem[] {
       processedItems.push({
         type: 'function_call',
         name: item.name,
-        arguments: item.arguments,
         id: item.id ?? '',
         callId: item.callId ?? '',
         status: 'in_progress',
@@ -40,12 +46,6 @@ function processItems(items: AgentInputItem[]): ProcessedItem[] {
       );
 
       if (index !== -1 && processedItems[index].type === 'function_call') {
-        processedItems[index].output =
-          item.output.type === 'text'
-            ? item.output.text
-            : item.output.type === 'image'
-              ? item.output.data
-              : '';
         processedItems[index].status = 'completed';
       }
     }
@@ -82,17 +82,57 @@ function processItems(items: AgentInputItem[]): ProcessedItem[] {
   return processedItems;
 }
 
-export function History({ history }: HistoryProps) {
+// Simple clickable function call component
+function SimpleFunctionCall({
+  item,
+  onClick
+}: {
+  item: ProcessedFunctionCallItem;
+  onClick?: (eventId: string) => void;
+}) {
+  return (
+    <div
+      className={clsx(
+        'flex items-center gap-2 py-2 px-3 my-1 rounded-lg cursor-pointer transition-all duration-200',
+        'bg-orange-50 border border-orange-200 hover:bg-orange-100 hover:shadow-sm text-orange-700'
+      )}
+      onClick={() => onClick?.(item.callId || item.id)}
+    >
+      <div className="flex-shrink-0">
+        {item.status === 'completed' ? (
+          <CheckCircle className="w-4 h-4" />
+        ) : (
+          <Clock className="w-4 h-4 animate-pulse" />
+        )}
+      </div>
+      <FunctionSquare className="w-4 h-4" />
+      <span className="text-sm font-medium">
+        Tool call: {item.name}
+      </span>
+      {item.status === 'in_progress' && (
+        <span className="text-xs opacity-70">(running...)</span>
+      )}
+    </div>
+  );
+}
+
+export function History({ history, onEventClick }: HistoryProps) {
   const processedItems = useMemo(() => processItems(history), [history]);
 
   return (
     <div
-      className="overflow-y-scroll pl-4 flex-1 rounded-lg bg-white space-y-4"
+      className="p-4 space-y-4"
       id="chatHistory"
     >
       {processedItems.map((item, idx) => {
         if (item.type === 'function_call') {
-          return <FunctionCallMessage message={item} key={item.id ?? idx} />;
+          return (
+            <SimpleFunctionCall
+              key={item.id || idx}
+              item={item}
+              onClick={onEventClick}
+            />
+          );
         }
 
         if (item.type === 'message') {
