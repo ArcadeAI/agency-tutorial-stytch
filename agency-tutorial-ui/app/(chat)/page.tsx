@@ -6,6 +6,8 @@ import { AgentInputItem, RunToolApprovalItem, user } from "@openai/agents"
 import { History } from "./components/history"
 import { Approvals } from "./components/approvals";
 import { EventDisplay } from "./components/event-display";
+import {useStytchUser} from "@stytch/nextjs";
+import {LoginScreen} from "@/components/auth/auth";
 
 
 type ChatEvent = {
@@ -13,7 +15,7 @@ type ChatEvent = {
     message: string
 }
 
-export default function ChatPage() {
+function ChatImplementation() {
     const [messages, setMessages] = useState<AgentInputItem[]>([]);
     const [events, setEvents] = useState<ChatEvent[]>([]);
     const [conversationId, setConversationId] = useState<string | null>(null);
@@ -164,4 +166,19 @@ export default function ChatPage() {
             </div>
         </div>
     </div>
+}
+
+
+export default function ChatPage() {
+    const {user} = useStytchUser();
+
+    if (user) {
+        return <ChatImplementation/>;
+    } else {
+        return (
+            <div className="fixed inset-0 flex flex-col items-center justify-center">
+                <LoginScreen/>
+            </div>
+        )
+    }
 }
