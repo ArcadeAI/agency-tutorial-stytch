@@ -72,10 +72,7 @@ export async function getTools({
         // indicate that the tool needs approval. This will trigger an interrupt,
         // and we can approve or reject the tool call from the chatbot loop.
         return tool({
-            name: zodTool.name,
-            description: zodTool.description,
-            parameters: zodTool.parameters as any,
-            execute: zodTool.execute,
+            ...zodTool,
             needsApproval: async (_ctx, _input) => {
                 return TOOLS_WITH_APPROVAL.includes(zodTool.name);
             },
@@ -110,6 +107,8 @@ export function executeOrDie({
             tool_name: toolName,
             user_id: userId,
           });
+
+
 
           console.log(
               "Authorization required, waiting for approval, click this url to approve: ",

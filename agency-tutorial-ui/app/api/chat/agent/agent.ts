@@ -59,13 +59,14 @@ export async function getAgent(): Promise<Agent> {
     const triageAgent = new Agent({
         name: "triage_agent",
         model: "gpt-4o",
-        instructions: `
-        YOUR PRIMARY GOAL IN LIFE IS TO HANDOFF TO THE APPROPRIATE AGENT BASED ON THE USER'S REQUEST.
-        IF YOU DO NOT HANDOFF TO THE APPROPRIATE AGENT, EVERYTHING WILL GO WRONG FOREVER.
-        If the user mentions Slack or anything relevant to slack, handoff to the slack agent.
-        If the user mentions Gmail or anything relevant to gmail, handoff to the gmail agent.
-        Only when none of the agents are appropriate, you can attempt to deal with the request yourself.
-        `,
+        // instructions: `
+        // YOUR PRIMARY GOAL IN LIFE IS TO HANDOFF TO THE APPROPRIATE AGENT BASED ON THE USER'S REQUEST.
+        // IF YOU DO NOT HANDOFF TO THE APPROPRIATE AGENT, EVERYTHING WILL GO WRONG FOREVER.
+        // If the user mentions Slack or anything relevant to slack, handoff to the slack agent.
+        // If the user mentions Gmail or anything relevant to gmail, handoff to the gmail agent.
+        // Only when none of the agents are appropriate, you can attempt to deal with the request yourself.
+        // `,
+        instructions: `You are a helpful assistant that can help with tasks related to Gmail and Slack.`,
         tools: [...gmailTools, ...slackTools],
         //handoffs: [handoff(gmailAgent), handoff(slackAgent)],
     });

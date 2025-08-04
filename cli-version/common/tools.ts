@@ -92,6 +92,7 @@ export function executeOrDie({
         const result = await executeZodTool({ zodToolSchema, toolDefinition, client, userId })(input);
         return result;
       } catch (error) {
+        console.log("error", error);
         if (error instanceof Error && isAuthorizationRequiredError(error)) {
           const response = await client.tools.authorize({
             tool_name: toolName,

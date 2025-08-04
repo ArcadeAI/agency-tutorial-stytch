@@ -1,11 +1,13 @@
-// Part 2: Adding tools to the chatbot
+// Part 3: Adding human-in-the-loop confirmations to a tool
 "use strict";
 import Arcade from "@arcadeai/arcadejs";
 import { getTools } from "./common/tools";
 import { Agent, run, type AgentInputItem, user, assistant } from "@openai/agents";
 import chalk from "chalk";
+import { confirm } from "./common/utils";
 import ora from "ora";
 import readline from "node:readline/promises";
+import { display } from "./common/display";
 
 const spinner = ora({
     discardStdin: false,
@@ -21,7 +23,7 @@ const arcade = new Arcade({
 const userId = "mateo@arcade.dev";
 
 spinner.start();
-const tools = await getTools({ arcade, toolkits: ["Gmail"], userId: userId });
+const tools = await getTools({ arcade, toolkits: ["Gmail"], userId: userId, enforceApproval: true });
 spinner.succeed(`${tools.length} tools loaded`);
 
 const chatbot = new Agent({
@@ -46,29 +48,56 @@ async function main() {
     // The history of the conversation, without this the chatbot will not be able to
     // remember the conversation.
     let history: AgentInputItem[] = [];
+    let previousHistoryLength = 0;
 
     console.log(
         chalk.green("Welcome to the chatbot! Type 'exit' to quit.")
     );
     while (true) {
+        rl.resume();
         const input = await rl.question("> ");
         if (input.toLowerCase() === "exit") {
             break;
         }
         rl.pause();
-        history.push(user(input));
-        let stream = await run(chatbot, history, { stream: true, maxTurns: 5 });
-        stream
-            .toTextStream({ compatibleWithNodeStreams: true })
-            .pipe(process.stdout);
-        await stream.completed;
 
-        if (stream.finalOutput) {
-            history.push(assistant(stream.finalOutput));
+        history.push(user(input));
+        previousHistoryLength = history.length;
+
+        let response = await run(chatbot, history, { maxTurns: 5 });
+
+        history = response.history;
+        display(history, previousHistoryLength);
+        previousHistoryLength = history.length;
+
+        while (response.interruptions?.length > 0) {
+            console.log(
+                chalk.red(
+                    "Human-in-the-loop: approval required for the following events:"
+                )
+            );
+            const state = response.state;
+            rl.resume();
+            for (const interruption of response.interruptions) {
+                const ok = await confirm(
+                    chalk.red(`Agent ${interruption.agent.name} would like to use the tool ${interruption.rawItem.name} with "${interruption.rawItem.arguments}" Do you approve?`),
+                    rl
+                );
+                if (ok) {
+                    state.approve(interruption);
+                } else {
+                    state.reject(interruption);
+                }
+            }
+            rl.pause();
+
+            response = await run(chatbot, state, { maxTurns: 5 });
+
+            history = response.history;
+            display(history, previousHistoryLength);
+            previousHistoryLength = history.length;
+
         }
-        // Print a newline to separate the output from the next prompt
-        console.log("\n");
-        rl.resume();
     }
     console.log(chalk.red("👋 Bye..."));
     process.exit(0);
