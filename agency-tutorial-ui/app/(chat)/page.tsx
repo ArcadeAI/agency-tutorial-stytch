@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 
 import { AgentInputItem, RunToolApprovalItem, user } from "@openai/agents"
 import { History } from "./components/history"
@@ -21,6 +21,7 @@ function ChatImplementation() {
     const [conversationId, setConversationId] = useState<string | null>(null);
     const [approvals, setApprovals] = useState<ReturnType<RunToolApprovalItem['toJSON']>[]>([]);
     const [highlightedEventId, setHighlightedEventId] = useState<string | undefined>();
+    const [isProcessing, setIsProcessing] = useState(false);
     const chatScrollRef = useRef<HTMLDivElement>(null);
 
     // Auto-scroll chat to bottom when new messages arrive
@@ -46,67 +47,78 @@ function ChatImplementation() {
     };
 
 
-    async function makeRequest({
+    const makeRequest = useCallback(async ({
         message,
         decisions,
     }: {
         message?: string;
         decisions?: Map<string, "approved" | "rejected">;
-    }) {
-        const history = [...messages];
-
-        if (message) {
-            history.push(user(message));
+    }) => {
+        if (isProcessing) {
+            console.log("Request already in progress, ignoring...");
+            return;
         }
 
-        setMessages([
-            ...history,
-            // This is just a placeholder to show on the UI to show the agent is working
-            {
-                type: "message",
-                role: "assistant",
-                content: [],
-                status: "in_progress",
-            },
-        ]);
+        setIsProcessing(true);
 
-        // We will send the messages to the API route along with the conversation ID if we have one
-        // and the decisions if we had any approvals in this turn
-        const response = await fetch("/api/chat", {
-            method: "POST",
-            body: JSON.stringify({
-                messages: history,
-                conversationId,
-                decisions: Object.fromEntries(decisions ?? []),
-            }),
-        });
+        try {
+            const history = [...messages];
 
-        const data = await response.json();
+            if (message) {
+                history.push(user(message));
+            }
 
-        console.log("data", data);
+            setMessages([
+                ...history,
+                // This is just a placeholder to show on the UI to show the agent is working
+                {
+                    type: "message",
+                    role: "assistant",
+                    content: [],
+                    status: "in_progress",
+                },
+            ]);
 
-        if (data.conversationId) {
-            setConversationId(data.conversationId);
+            // We will send the messages to the API route along with the conversation ID if we have one
+            // and the decisions if we had any approvals in this turn
+            const response = await fetch("/api/chat", {
+                method: "POST",
+                body: JSON.stringify({
+                    messages: history,
+                    conversationId,
+                    decisions: Object.fromEntries(decisions ?? []),
+                }),
+            });
+
+            const data = await response.json();
+
+            console.log("data", data);
+
+            if (data.conversationId) {
+                setConversationId(data.conversationId);
+            }
+
+            if (data.history) {
+                setMessages(data.history);
+            }
+
+            if (data.approvals) {
+                setApprovals(data.approvals);
+            } else {
+                setApprovals([]);
+            }
+        } finally {
+            setIsProcessing(false);
         }
-
-        if (data.history) {
-            setMessages(data.history);
-        }
-
-        if (data.approvals) {
-            setApprovals(data.approvals);
-        } else {
-            setApprovals([]);
-        }
-    }
+    }, [messages, conversationId, isProcessing]);
 
       const handleSend = async (message: string) => {
         await makeRequest({ message });
       };
 
-      async function handleDone(decisions: Map<string, 'approved' | 'rejected'>) {
+      const handleDone = useCallback(async (decisions: Map<string, 'approved' | 'rejected'>) => {
         await makeRequest({ decisions });
-      }
+      }, [makeRequest]);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -139,24 +151,39 @@ function ChatImplementation() {
             <div className="flex flex-col bg-gray-50 rounded-lg min-h-0">
                 {/* Chat Messages - Scrollable */}
                 <div ref={chatScrollRef} className="flex-1 overflow-y-auto min-h-0">
-                    <History history={messages} onEventClick={handleEventClick} />
+                                        <History
+                        history={messages}
+                        approvals={approvals}
+                        onEventClick={handleEventClick}
+                        onApprovalDone={handleDone}
+                        isProcessing={isProcessing}
+                    />
                 </div>
 
                 {/* Chat Form - Fixed at bottom */}
                 <div className="flex-shrink-0 p-4 bg-white border-t rounded-b-lg">
                     <form className="w-full flex gap-4" onSubmit={handleSubmit}>
-                        <textarea
+                                                <textarea
                             className="flex-1 p-2 border rounded-md resize-none"
                             rows={3}
                             name="message"
                             onKeyDown={handleKeyDown}
-                            placeholder="Type a message... (Press Enter to send, Shift+Enter for new line)"
+                            placeholder={approvals.length > 0
+                                ? "Please respond to approval requests above..."
+                                : isProcessing
+                                    ? "Processing..."
+                                    : "Type a message... (Press Enter to send, Shift+Enter for new line)"
+                            }
+                            disabled={approvals.length > 0 || isProcessing}
                         />
-                        <button className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors" type="submit">
+                        <button
+                            className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                            type="submit"
+                            disabled={approvals.length > 0 || isProcessing}
+                        >
                             Send
                         </button>
                     </form>
-                    <Approvals approvals={approvals} onDone={handleDone} />
                 </div>
             </div>
 

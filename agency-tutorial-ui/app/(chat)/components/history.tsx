@@ -1,12 +1,16 @@
-import type { AgentInputItem } from '@openai/agents';
+import type { AgentInputItem, RunToolApprovalItem } from '@openai/agents';
 import { TextMessage } from './messages/text-message';
+import { InlineApprovals } from './approvals';
 import { useMemo } from 'react';
 import { FunctionSquare, Clock, CheckCircle } from 'lucide-react';
 import clsx from 'clsx';
 
 export type HistoryProps = {
   history: AgentInputItem[];
+  approvals?: ReturnType<RunToolApprovalItem['toJSON']>[];
   onEventClick?: (eventId: string) => void;
+  onApprovalDone?: (decisions: Map<string, "approved" | "rejected">) => void;
+  isProcessing?: boolean;
 };
 
 export type ProcessedMessageItem = {
@@ -116,7 +120,7 @@ function SimpleFunctionCall({
   );
 }
 
-export function History({ history, onEventClick }: HistoryProps) {
+export function History({ history, approvals = [], onEventClick, onApprovalDone, isProcessing = false }: HistoryProps) {
   const processedItems = useMemo(() => processItems(history), [history]);
 
   return (
@@ -147,6 +151,15 @@ export function History({ history, onEventClick }: HistoryProps) {
 
         return null;
       })}
+
+            {/* Render approval requests inline in the chat */}
+      {approvals.length > 0 && onApprovalDone && (
+        <InlineApprovals
+          approvals={approvals}
+          onDone={onApprovalDone}
+          isProcessing={isProcessing}
+        />
+      )}
     </div>
   );
 }
