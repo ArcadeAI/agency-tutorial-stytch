@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { useMemo, useRef, useEffect, useState } from 'react';
 import clsx from 'clsx';
+import {useStytch, withStytchUser} from "@stytch/nextjs";
+import {Button} from "@/components/ui/button";
 
 export type EventDisplayProps = {
   history: AgentInputItem[];
@@ -267,10 +269,11 @@ function EventItem({ item, index, isHighlighted }: EventItemProps) {
   );
 }
 
-export function EventDisplay({ history, highlightedEventId }: EventDisplayProps) {
+export const EventDisplay = withStytchUser<EventDisplayProps>(function EventDisplay({ history, highlightedEventId, stytchUser }) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const previousHistoryLength = useRef(history.length);
+  const stytch = useStytch();
 
   const eventCount = useMemo(() => {
     const counts = history.reduce((acc, item) => {
@@ -373,11 +376,15 @@ export function EventDisplay({ history, highlightedEventId }: EventDisplayProps)
     }
   }, [highlightedEventId]);
 
+  const emailAddress = stytchUser?.emails[0]?.email;
+
   return (
     <div className="h-full flex flex-col">
       {/* Header with event summary */}
       <div className="flex-shrink-0 p-4 border-b bg-white rounded-t-lg">
-        <h2 className="text-lg font-semibold mb-2">Chat Event History</h2>
+        <h2 className="text-lg font-semibold mb-2">Chat Event History for {emailAddress}
+            <Button size="sm" className="ml-10" onClick={() => stytch.session.revoke()}>Log Out</Button>
+        </h2>
         <div className="flex flex-wrap gap-2 text-xs">
           {Object.entries(eventCount).map(([type, count]) => (
             <span
@@ -427,4 +434,4 @@ export function EventDisplay({ history, highlightedEventId }: EventDisplayProps)
       </div>
     </div>
   );
-}
+})

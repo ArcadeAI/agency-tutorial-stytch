@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
+import { Client } from "stytch";
 
 import { getAgent } from "./agent/agent";
 import {
@@ -10,15 +11,38 @@ import {
     RunToolApprovalItem,
 } from "@openai/agents";
 import { db } from './agent/db';
+import {cookies} from "next/headers";
 
 function generateConversationId() {
     return `conv_${randomUUID().replace(/-/g, "").slice(0, 24)}`;
 }
 
+const stytchClient = new Client({
+    project_id: process.env.STYTCH_PROJECT_ID!,
+    secret: process.env.STYTCH_PROJECT_SECRET!,
+})
+
 export async function POST(req: NextRequest) {
+    const c = await cookies()
+
+    let userEmail;
+    try {
+        const authResp = await stytchClient.sessions.authenticate({
+            session_jwt:  c.get("stytch_session_jwt")?.value as string
+        })
+        userEmail = authResp.user.emails[0].email;
+        console.log('Authenticated user email', userEmail);
+    } catch (error) {
+        console.error(error);
+        return NextResponse.json(
+            { error: "Authentication failed" },
+            { status: 401 }
+        );
+    }
+
     try {
         const data = await req.json();
-        const agent = await getAgent();
+        const agent = await getAgent(userEmail);
         let { messages, conversationId, decisions } = data;
 
         if (!messages) {
@@ -42,7 +66,7 @@ export async function POST(req: NextRequest) {
         let input: AgentInputItem[] | RunState<any, any>;
         if (Object.keys(decisions).length > 0 && data.conversationId /* original conversationId */) {
             // If we receive a new request with decisions, we will look up the current state in the database
-            const stateString = await db().get(data.conversationId);
+            const stateString = await db().get(userEmail, data.conversationId);
 
             if (!stateString) {
                 return NextResponse.json(
@@ -79,7 +103,7 @@ export async function POST(req: NextRequest) {
                 // If the run resulted in one or more interruptions, we will store the current state in the database
 
                 // store the state in the database
-                await db().set(conversationId, JSON.stringify(result.state));
+                await db().set(userEmail, conversationId, JSON.stringify(result.state));
 
                 // We will return all the interruptions as approval requests to the UI/client so it can generate
                 // the UI for approvals

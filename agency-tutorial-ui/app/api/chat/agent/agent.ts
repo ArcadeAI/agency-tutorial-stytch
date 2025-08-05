@@ -4,35 +4,34 @@ import { getTools } from "./common/tools";
 
 const arcade = new Arcade({
     apiKey: process.env.ARCADE_API_KEY,
-    baseURL: process.env.ARCADE_BASE_URL,
 });
 
-const userId = "mateo@arcade.dev";
+// const userId = "mateo@arcade.dev";
 
 // Cache for agents to avoid recreating them on every request
-let agentsCache: {
+const agentsCache: Record<string, {
     triageAgent?: Agent;
     gmailAgent?: Agent;
     slackAgent?: Agent;
-} = {};
+}> = {};
 
-export async function getAgent(): Promise<Agent> {
-    if (agentsCache.triageAgent) {
-        return agentsCache.triageAgent;
+export async function getAgent(userEmail: string): Promise<Agent> {
+    if (agentsCache[userEmail]?.triageAgent) {
+        return agentsCache[userEmail].triageAgent;
     }
 
     // Fetch tools within the request context
     const gmailTools = await getTools({
         arcade,
         tools: ["Gmail.ListEmails", "Gmail.SendEmail"],
-        userId: userId,
+        userId: userEmail,
         enforceApproval: true,
     });
 
     const slackTools = await getTools({
         arcade,
         tools: ["Slack.SendDmToUser", "Slack.ListUsers", "Slack.GetUsersInfo", "Slack.SendMessageToChannel"],
-        userId: userId,
+        userId: userEmail,
         enforceApproval: true,
     });
 
@@ -76,7 +75,7 @@ export async function getAgent(): Promise<Agent> {
     slackAgent.handoffs.push(handoff(triageAgent), handoff(gmailAgent));
 
     // Cache the agents
-    agentsCache = {
+    agentsCache[userEmail] = {
         triageAgent,
         gmailAgent,
         slackAgent,

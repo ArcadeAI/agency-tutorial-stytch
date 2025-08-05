@@ -10,12 +10,16 @@ export class Database<Value> {
         this.#database = new Map();
     }
 
-    async get(key: string) {
-        return this.#database.get(key);
+    static Key(userId: string, conversationID: string): string {
+        return userId + '__' + conversationID;
     }
 
-    async set(key: string, value: Value) {
-        this.#database.set(key, value);
+    async get(userId: string, conversationID: string) {
+        return this.#database.get(Database.Key(userId, conversationID));
+    }
+
+    async set(userId: string, conversationID: string, value: Value) {
+        this.#database.set(Database.Key(userId, conversationID), value);
     }
 }
 
